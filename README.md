@@ -20,6 +20,8 @@ This component provides basic mathematical operations that can be consumed by ot
 - `factorial(int n)` - Calculate factorial of non-negative integer
 - `power(double base, int exponent)` - Calculate power with integer exponent
 
+### v1.0.1 test
+
 ### v1.1.0 Functions (Added Later)
 
 - `gcd(int a, int b)` - Calculate greatest common divisor
