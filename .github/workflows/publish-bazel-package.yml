@@ -104,6 +104,8 @@ jobs:
             git add modules/hbf_examplecpp/
             git commit -m "Add hbf_examplecpp" || echo "No changes to commit"
             git push origin HEAD:main
+        env:
+            GITHUB_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
 
       - name: Summary
         run: |
