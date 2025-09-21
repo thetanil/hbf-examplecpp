@@ -94,12 +94,17 @@ jobs:
           fi
 
       - name: Commit and push to registry
+        env:
+          RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
         run: |
           cd registry
           
           echo "🔧 Configuring git"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          # Configure git to use the token for authentication
+          git remote set-url origin https://x-access-token:${RENOVATE_TOKEN}@github.com/thetanil/hbf-bzl.git
           
           echo "📤 Committing changes"
           git add .
