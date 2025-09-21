@@ -91,6 +91,23 @@ bazel clean
 bazel clean --expunge
 ```
 
+#### Code Formatting
+
+The project uses `clang-format` for consistent code formatting:
+
+```bash
+# Check if code is properly formatted
+./tools/format_check.sh
+
+# Automatically fix formatting issues
+./tools/format_fix.sh
+
+# Check formatting without making changes
+find src tests -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run --Werror
+```
+
+**Note**: The CI will fail if code is not properly formatted. Always run `./tools/format_fix.sh` before committing.
+
 #### Expected Output
 
 When running `bazel test //... --test_output=all`, you should see:
@@ -252,6 +269,21 @@ bazel version
 
 # Verify bzlmod is enabled
 bazel info | grep bzlmod
+```
+
+### Code Formatting Issues
+
+If CI fails due to formatting:
+
+```bash
+# Fix all formatting issues automatically
+./tools/format_fix.sh
+
+# Then rebuild and test
+bazel test //...
+
+# Verify formatting is correct
+./tools/format_check.sh
 ```
 
 ### GitHub Actions CI Issues

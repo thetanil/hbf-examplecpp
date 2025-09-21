@@ -1,0 +1,11 @@
+# Simple shell scripts for code formatting
+# These can be run directly or via ./tools/format_*.sh
+
+filegroup(
+    name = "format_scripts",
+    srcs = [
+        "format_check.sh",
+        "format_fix.sh",
+    ],
+    visibility = ["//visibility:public"],
+)

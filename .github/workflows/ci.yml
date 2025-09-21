@@ -43,7 +43,7 @@ jobs:
     - name: Check code formatting (if clang-format available)
       run: |
         if command -v clang-format &> /dev/null; then
-          find src tests -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run --Werror
+          ./tools/format_check.sh
         else
           echo "clang-format not available, skipping format check"
         fi
