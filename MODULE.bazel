@@ -1,0 +1,11 @@
+module(
+    name = "hbf_examplecpp",
+    version = "1.0.0",
+    compatibility_level = 1,
+)
+
+# Core dependencies
+bazel_dep(name = "rules_cc", version = "0.0.9")
+
+# Development dependencies (for testing)
+bazel_dep(name = "googletest", version = "1.14.0", dev_dependency = True)

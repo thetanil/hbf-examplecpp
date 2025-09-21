@@ -1,0 +1,18 @@
+# Root BUILD file for hbf-examplecpp
+
+package(default_visibility = ["//visibility:public"])
+
+# Re-export main library for easy access
+alias(
+    name = "math_operations",
+    actual = "//src:math_operations",
+)
+
+# Documentation filegroup
+filegroup(
+    name = "docs",
+    srcs = [
+        "README.md",
+        "LICENSE",
+    ],
+)

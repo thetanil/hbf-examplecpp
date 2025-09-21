@@ -1,0 +1,18 @@
+# Build configuration for C++ component
+build --enable_bzlmod
+build --experimental_enable_bzlmod
+
+# C++ configuration
+build --cxxopt=-std=c++17
+build --host_cxxopt=-std=c++17
+
+# Test configuration
+test --test_output=errors
+test --test_verbose_timeout_warnings
+
+# Performance optimizations
+build --jobs=auto
+
+# Debugging options (uncomment as needed)
+# build --verbose_failures
+# build --compilation_mode=dbg

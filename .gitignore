@@ -39,3 +39,7 @@
 
 # debug information files
 *.dwo
+bazel-testlogs
+bazel-out
+bazel-hbf-examplecpp
+bazel-bin
