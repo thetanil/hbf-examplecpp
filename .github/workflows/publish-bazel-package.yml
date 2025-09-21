@@ -1,4 +1,4 @@
-name: Publish Bazel Package
+name: Publish Bazel Package (Community Pattern)
 
 on:
   release:
@@ -12,22 +12,26 @@ jobs:
       - name: Checkout source repo
         uses: actions/checkout@v4
 
-      - name: Download release archive
+      - name: Extract release info
+        id: release_info
         run: |
-          echo "📦 Downloading release archive for ${{ github.event.release.tag_name }}"
-          curl -L -o package.zip https://github.com/${{ github.repository }}/archive/refs/tags/${{ github.event.release.tag_name }}.zip
-          
-          echo "🔍 Calculating SHA256 checksum"
-          shasum -a 256 package.zip | cut -d " " -f 1 > sha256.txt
-          SHA256=$(cat sha256.txt)
-          echo "SHA256=$SHA256" >> $GITHUB_ENV
-          echo "Archive SHA256: $SHA256"
-          
-          # Extract version number (remove 'v' prefix if present)
           VERSION="${{ github.event.release.tag_name }}"
           VERSION_NUMBER="${VERSION#v}"
-          echo "VERSION_NUMBER=$VERSION_NUMBER" >> $GITHUB_ENV
+          echo "version_number=$VERSION_NUMBER" >> $GITHUB_OUTPUT
           echo "Version: $VERSION_NUMBER"
+
+      - name: Download and verify release archive
+        id: download
+        run: |
+          echo "📦 Downloading release archive for ${{ github.event.release.tag_name }}"
+          ARCHIVE_URL="https://github.com/${{ github.repository }}/archive/refs/tags/${{ github.event.release.tag_name }}.zip"
+          curl -L -o package.zip "$ARCHIVE_URL"
+          
+          echo "🔍 Calculating SHA256 checksum"
+          SHA256=$(shasum -a 256 package.zip | cut -d " " -f 1)
+          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+          echo "archive_url=$ARCHIVE_URL" >> $GITHUB_OUTPUT
+          echo "Archive SHA256: $SHA256"
 
       - name: Checkout registry repo
         uses: actions/checkout@v4
@@ -36,93 +40,84 @@ jobs:
           token: ${{ secrets.RENOVATE_TOKEN }}
           path: registry
 
-      - name: Update registry
+      - name: Create registry structure
         run: |
-          echo "📝 Creating registry entry for hbf_examplecpp $VERSION_NUMBER"
+          VERSION_NUMBER="${{ steps.release_info.outputs.version_number }}"
+          MODULE_DIR="registry/modules/hbf_examplecpp"
+          VERSION_DIR="$MODULE_DIR/$VERSION_NUMBER"
           
-          # Create module directory structure
-          mkdir -p registry/modules/hbf_examplecpp/$VERSION_NUMBER
+          echo "📁 Creating directory structure"
+          mkdir -p "$VERSION_DIR"
           
-          # Create source.json with download information
-          cat > registry/modules/hbf_examplecpp/$VERSION_NUMBER/source.json <<EOF
+          echo "📋 Creating MODULE.bazel"
+          cp MODULE.bazel "$VERSION_DIR/"
+          
+          echo "📋 Creating source.json"
+          cat > "$VERSION_DIR/source.json" << EOF
           {
-            "url": "https://github.com/${{ github.repository }}/archive/refs/tags/${{ github.event.release.tag_name }}.zip",
-            "integrity": "sha256-${SHA256}",
+            "url": "${{ steps.download.outputs.archive_url }}",
+            "integrity": "sha256-${{ steps.download.outputs.sha256 }}",
             "strip_prefix": "hbf-examplecpp-${{ github.event.release.tag_name }}"
           }
           EOF
           
-          # Copy MODULE.bazel from the source if it exists
-          if [ -f MODULE.bazel ]; then
-            echo "📋 Copying MODULE.bazel to registry"
-            cp MODULE.bazel registry/modules/hbf_examplecpp/$VERSION_NUMBER/MODULE.bazel
-          else
-            echo "⚠️  No MODULE.bazel found in source"
-          fi
+          echo "📋 Creating/updating metadata.json"
+          if [[ -f "$MODULE_DIR/metadata.json" ]]; then
+            # Update existing metadata.json (add version if not present)
+            python3 << EOF
+          import json
           
-          echo "✅ Registry files created:"
-          find registry/modules/hbf_examplecpp/$VERSION_NUMBER -type f -exec ls -la {} \;
-
-      - name: Update metadata
-        run: |
-          cd registry
+          with open("$MODULE_DIR/metadata.json", "r") as f:
+              metadata = json.load(f)
           
-          # Create or update metadata.json for the module
-          METADATA_FILE="modules/hbf_examplecpp/metadata.json"
+          if "versions" not in metadata:
+              metadata["versions"] = []
           
-          if [ ! -f "$METADATA_FILE" ]; then
-            echo "📄 Creating new metadata.json"
-            mkdir -p modules/hbf_examplecpp
-            cat > "$METADATA_FILE" <<EOF
-          {
-            "homepage": "https://github.com/${{ github.repository }}",
-            "maintainers": [
-              {
-                "github": "${{ github.actor }}",
-                "email": "${{ github.actor }}@users.noreply.github.com"
-              }
-            ],
-            "repository": ["github:${{ github.repository }}"],
-            "versions": ["$VERSION_NUMBER"]
-          }
+          version = "$VERSION_NUMBER"
+          if version not in metadata["versions"]:
+              metadata["versions"].append(version)
+              metadata["versions"].sort(key=lambda v: [int(x) for x in v.split(".")])
+          
+          with open("$MODULE_DIR/metadata.json", "w") as f:
+              json.dump(metadata, f, indent=2)
           EOF
           else
-            echo "📝 Updating existing metadata.json"
-            # Add the new version to the versions array (this is a simple append)
-            # In a real scenario, you might want more sophisticated JSON manipulation
-            sed -i 's/"versions": \[\([^]]*\)\]/"versions": [\1, "'$VERSION_NUMBER'"]/' "$METADATA_FILE"
+            # Create new metadata.json
+            cat > "$MODULE_DIR/metadata.json" << EOF
+          {
+            "homepage": "https://github.com/${{ github.repository }}",
+            "maintainers": ["${{ github.repository_owner }}"],
+            "versions": ["$VERSION_NUMBER"],
+            "yanked_versions": {}
+          }
+          EOF
           fi
+          
+          echo "✅ Registry structure created"
 
-      - name: Commit and push to registry
-        env:
-          RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
-        run: |
-          cd registry
-          
-          echo "🔧 Configuring git"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          
-          # Configure git to use the token for authentication
-          git remote set-url origin https://x-access-token:${RENOVATE_TOKEN}@github.com/thetanil/hbf-bzl.git
-          
-          echo "📤 Committing changes"
-          git add .
-          
-          if git diff --staged --quiet; then
-            echo "ℹ️  No changes to commit"
-          else
-            git commit -m "Add hbf_examplecpp $VERSION_NUMBER
-
+      - name: Commit and push changes
+        uses: EndBug/add-and-commit@v9
+        with:
+          cwd: registry
+          add: 'modules/hbf_examplecpp/'
+          message: |
+            Add hbf_examplecpp ${{ steps.release_info.outputs.version_number }}
+            
             Released from: ${{ github.event.release.html_url }}
-            Archive SHA256: $SHA256
-            Archive URL: https://github.com/${{ github.repository }}/archive/refs/tags/${{ github.event.release.tag_name }}.zip"
-            
-            echo "🚀 Pushing to registry"
-            git push
-            
-            echo "✅ Successfully published hbf_examplecpp $VERSION_NUMBER to Bazel registry"
-            echo "📋 Registry URL: https://github.com/thetanil/hbf-bzl"
-            echo "🎯 Users can now add this to their .bazelrc:"
-            echo "    common --registry=https://github.com/thetanil/hbf-bzl"
-          fi
+            Archive SHA256: ${{ steps.download.outputs.sha256 }}
+            Archive URL: ${{ steps.download.outputs.archive_url }}
+          default_author: github_actions
+          push: true
+
+      - name: Summary
+        run: |
+          echo "## 🎉 Successfully Published to Bazel Registry" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Module**: hbf_examplecpp" >> $GITHUB_STEP_SUMMARY
+          echo "**Version**: ${{ steps.release_info.outputs.version_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Registry**: https://github.com/thetanil/hbf-bzl" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Usage" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bazelrc" >> $GITHUB_STEP_SUMMARY
+          echo "common --registry=https://raw.githubusercontent.com/thetanil/hbf-bzl/main/" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
