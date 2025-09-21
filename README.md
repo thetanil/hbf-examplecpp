@@ -228,7 +228,7 @@ If you encounter build failures:
 ```bash
 # Clean and retry
 bazel clean
-bazel build //...
+bazel test //...
 
 # Check Bazel version
 bazel version
@@ -236,6 +236,21 @@ bazel version
 # Verify bzlmod is enabled
 bazel info | grep bzlmod
 ```
+
+### GitHub Actions CI Issues
+
+**Cache service responded with 400**: This CI issue has been resolved by:
+- Upgrading to `actions/cache@v4`
+- Simplifying cache key generation
+- Adding `.bazelversion` file for consistent builds
+- Using proper cache path format
+
+The CI workflow now includes:
+- Bazel setup with Bazelisk
+- Proper caching configuration
+- Build and test validation
+- Module structure verification
+- Optional code formatting checks
 
 ## Integration
 
