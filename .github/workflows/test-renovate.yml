@@ -1,0 +1,136 @@
+name: Test Renovate Trigger
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      test_version:
+        description: 'Test version number'
+        required: false
+        default: 'manual-test'
+
+jobs:
+  test-renovate-trigger:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Test Renovate trigger
+      env:
+        RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
+      run: |
+        echo "🧪 Testing Renovate trigger..."
+        echo "Event: ${{ github.event_name }}"
+        echo "Repository: ${{ github.repository }}"
+        echo "Actor: ${{ github.actor }}"
+        echo "Branch: ${{ github.ref_name }}"
+        echo "Commit: ${{ github.sha }}"
+        
+        # Use manual input or generate test version
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          VERSION_NUMBER="${{ github.event.inputs.test_version }}"
+          echo "Manual trigger with version: $VERSION_NUMBER"
+        else
+          VERSION_NUMBER="auto-test-$(date +%Y%m%d-%H%M%S)"
+          echo "Auto trigger with version: $VERSION_NUMBER"
+        fi
+        
+        # Debug: Check if secret is accessible
+        if [ -n "$RENOVATE_TOKEN" ]; then
+          echo "✅ RENOVATE_TOKEN secret is accessible"
+          echo "Token length: ${#RENOVATE_TOKEN} characters"
+          echo "Token prefix: ${RENOVATE_TOKEN:0:4}****"
+        else
+          echo "❌ RENOVATE_TOKEN secret is not accessible!"
+          echo ""
+          echo "Debugging information:"
+          echo "- Event name: ${{ github.event_name }}"
+          echo "- Repository: ${{ github.repository }}"
+          echo "- Actor: ${{ github.actor }}"
+          echo "- Workflow: ${{ github.workflow }}"
+          echo "- Job permissions:"
+          echo "  - contents: read"
+          echo "  - actions: read"
+          echo "  - repository-projects: read"
+          echo ""
+          echo "Possible issues:"
+          echo "1. Secret 'RENOVATE_TOKEN' not configured in repository settings"
+          echo "2. Secret name mismatch (check exact spelling and case)"
+          echo "3. Repository is a fork (secrets not inherited by default)"
+          echo "4. Workflow permissions insufficient for secret access"
+          echo "5. Organization-level restrictions on secret access"
+          echo ""
+          echo "To verify:"
+          echo "- Go to Settings > Secrets and variables > Actions"
+          echo "- Ensure secret name is exactly 'RENOVATE_TOKEN'"
+          echo "- Check if repository is a fork and configure secrets appropriately"
+          echo "- Verify no organization policies blocking secret access"
+          exit 1
+        fi
+        
+        echo "🚀 Testing Renovate API call..."
+        
+        # Test the GitHub API call
+        HTTP_STATUS=$(curl -s -w "%{http_code}" -o response.json -X POST \
+          -H "Authorization: token $RENOVATE_TOKEN" \
+          -H "Accept: application/vnd.github.v3+json" \
+          -H "User-Agent: hbf-examplecpp-test" \
+          "https://api.github.com/repos/thetanil/hbf/dispatches" \
+          -d '{
+            "event_type": "renovate-test",
+            "client_payload": {
+              "component": "hbf_examplecpp",
+              "version": "'$VERSION_NUMBER'",
+              "repository": "thetanil/hbf-examplecpp",
+              "test_trigger": true,
+              "commit": "${{ github.sha }}",
+              "branch": "${{ github.ref_name }}",
+              "workflow": "${{ github.workflow }}",
+              "run_id": "${{ github.run_id }}",
+              "triggered_by": "${{ github.actor }}"
+            }
+          }')
+        
+        echo "HTTP Status: $HTTP_STATUS"
+        echo "Response content:"
+        cat response.json 2>/dev/null || echo "No response content"
+        
+        # Check if the API call was successful
+        if [ "$HTTP_STATUS" -eq 204 ]; then
+          echo ""
+          echo "✅ SUCCESS: Renovate trigger test completed!"
+          echo "📋 Summary:"
+          echo "  - Test version: $VERSION_NUMBER"
+          echo "  - Target repository: thetanil/hbf"
+          echo "  - Event type: renovate-test"
+          echo "  - HTTP Status: $HTTP_STATUS (No Content - Success)"
+          echo ""
+          echo "🎯 The meta-repository should receive the test dispatch event"
+          echo "    Check the Actions tab in thetanil/hbf for the triggered workflow"
+        else
+          echo ""
+          echo "❌ FAILED: Renovate trigger test failed!"
+          echo "📋 Diagnostic Information:"
+          echo "  - HTTP Status Code: $HTTP_STATUS"
+          echo "  - Token accessible: Yes (length: ${#RENOVATE_TOKEN})"
+          echo "  - Target repository: thetanil/hbf"
+          echo "  - Event type: renovate-test"
+          echo "  - API endpoint: https://api.github.com/repos/thetanil/hbf/dispatches"
+          echo ""
+          echo "🔍 Common causes:"
+          echo "  - Token lacks 'repo' scope for target repository"
+          echo "  - Target repository 'thetanil/hbf' doesn't exist or isn't accessible"
+          echo "  - Token is expired or revoked"
+          echo "  - Repository visibility/permissions mismatch"
+          echo "  - Network connectivity issues"
+          echo ""
+          echo "🛠️ Next steps:"
+          echo "  1. Verify token has 'repo' scope"
+          echo "  2. Confirm access to thetanil/hbf repository"
+          echo "  3. Check token expiration date"
+          echo "  4. Test token with: curl -H 'Authorization: token TOKEN' https://api.github.com/user"
+          exit 1
+        fi

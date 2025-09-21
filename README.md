@@ -140,6 +140,16 @@ The project uses GitHub Actions with `bazel-contrib/setup-bazel` for optimal CI 
 
 This provides automatic caching without manual configuration and significantly faster CI runs.
 
+### Testing Renovate Integration
+
+The workflow includes a dedicated test job (`test-renovate-trigger`) that:
+- **Runs on pushes to main** - No need to create releases for testing
+- **Validates secret access** - Provides detailed debugging if `RENOVATE_TOKEN` isn't accessible  
+- **Tests API connectivity** - Verifies the GitHub API call to the meta-repository works
+- **Uses test event type** - Sends `renovate-test` events instead of production `renovate-trigger`
+
+To test the Renovate integration, simply push commits to the main branch and check the workflow logs.
+
 ## Usage in Other Components
 
 ### As a Bazel Dependency
@@ -206,6 +216,8 @@ When creating a new release:
 1. **Create and push a git tag**: `git tag v1.0.x && git push origin v1.0.x`
 2. **Create GitHub release**: This triggers the CI workflow
 3. **Automatic Renovate trigger**: The release workflow automatically notifies the meta-repository (`thetanil/hbf`) to update dependencies
+
+**Testing Renovate Integration**: The workflow also includes a test job that runs on pushes to main branch to verify the Renovate trigger without creating releases.
 
 **Important**: The release process requires the `RENOVATE_TOKEN` secret to be configured. If the Renovate trigger fails, the entire release workflow will fail to ensure dependency updates are properly propagated.
 
@@ -328,9 +340,11 @@ If a release fails to trigger Renovate updates:
 - **❌ Network issues**: Temporary GitHub API problems
 
 **To debug secret access issues**:
-1. Check the workflow logs for "RENOVATE_TOKEN secret is accessible" message
-2. Verify token length is reported (should be ~40+ characters for GitHub tokens)
-3. Test token manually: `curl -H "Authorization: token YOUR_TOKEN" https://api.github.com/user`
+1. **Push to main branch** - The `test-renovate-trigger` job will run and provide detailed debugging
+2. Check the workflow logs for "RENOVATE_TOKEN secret is accessible" message
+3. Verify token length is reported (should be ~40+ characters for GitHub tokens)
+4. Test token manually: `curl -H "Authorization: token YOUR_TOKEN" https://api.github.com/user`
+5. Check that the token has `repo` scope for the target repository
 
 **Required for successful releases**:
 - `RENOVATE_TOKEN` secret with `repo` scope
