@@ -68,22 +68,47 @@ jobs:
         echo "Component hbf_examplecpp updated to version $VERSION_NUMBER"
         echo "Release URL: ${{ github.event.release.html_url }}"
         
-        # Optional: Force Renovate run in meta-repo (if tokens are configured)
-        if [ -n "$RENOVATE_TOKEN" ]; then
-          echo "Triggering Renovate update in meta-repository..."
-          curl -X POST \
-            -H "Authorization: token $RENOVATE_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/thetanil/hbf/dispatches" \
-            -d '{
-              "event_type": "renovate-trigger",
-              "client_payload": {
-                "component": "hbf_examplecpp",
-                "version": "'$VERSION_NUMBER'",
-                "repository": "thetanil/hbf-examplecpp",
-                "release_url": "${{ github.event.release.html_url }}"
-              }
-            }' || echo "Failed to trigger Renovate update (this is optional)"
+        # Validate that RENOVATE_TOKEN is configured
+        if [ -z "$RENOVATE_TOKEN" ]; then
+          echo "❌ RENOVATE_TOKEN secret is not configured!"
+          echo "This is required to trigger Renovate updates in the meta-repository."
+          echo "Please configure the RENOVATE_TOKEN secret in repository settings."
+          exit 1
+        fi
+        
+        echo "🚀 Triggering Renovate update in meta-repository..."
+        
+        # Trigger Renovate run in meta-repo (MUST succeed)
+        HTTP_STATUS=$(curl -s -w "%{http_code}" -o response.json -X POST \
+          -H "Authorization: token $RENOVATE_TOKEN" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/thetanil/hbf/dispatches" \
+          -d '{
+            "event_type": "renovate-trigger",
+            "client_payload": {
+              "component": "hbf_examplecpp",
+              "version": "'$VERSION_NUMBER'",
+              "repository": "thetanil/hbf-examplecpp",
+              "release_url": "${{ github.event.release.html_url }}"
+            }
+          }')
+        
+        echo "HTTP Status: $HTTP_STATUS"
+        
+        # Check if the API call was successful
+        if [ "$HTTP_STATUS" -eq 204 ]; then
+          echo "✅ Successfully triggered Renovate update in meta-repository!"
+          echo "Renovate should pick up the new version: $VERSION_NUMBER"
         else
-          echo "RENOVATE_TOKEN not configured, skipping Renovate trigger"
+          echo "❌ Failed to trigger Renovate update!"
+          echo "HTTP Status Code: $HTTP_STATUS"
+          echo "Response:"
+          cat response.json || echo "No response content"
+          echo ""
+          echo "This could be due to:"
+          echo "- Invalid RENOVATE_TOKEN (check token permissions)"
+          echo "- Meta-repository 'thetanil/hbf' doesn't exist or is not accessible"
+          echo "- Token doesn't have 'repo' scope for the meta-repository"
+          echo "- Network or API issues"
+          exit 1
         fi

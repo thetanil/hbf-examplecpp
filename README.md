@@ -196,7 +196,24 @@ bazel test //...
 This component follows semantic versioning:
 
 - **v1.0.0**: Initial release with basic mathematical operations
+- **v1.0.2**: CI improvements and formatting fixes
 - **v1.1.0**: Added GCD function (breaking for consumers expecting only v1.0.0 API)
+
+### Release Process
+
+When creating a new release:
+
+1. **Create and push a git tag**: `git tag v1.0.x && git push origin v1.0.x`
+2. **Create GitHub release**: This triggers the CI workflow
+3. **Automatic Renovate trigger**: The release workflow automatically notifies the meta-repository (`thetanil/hbf`) to update dependencies
+
+**Important**: The release process requires the `RENOVATE_TOKEN` secret to be configured. If the Renovate trigger fails, the entire release workflow will fail to ensure dependency updates are properly propagated.
+
+### Release Workflow Requirements
+
+- **`RENOVATE_TOKEN` secret**: Must have `repo` scope for the meta-repository
+- **Meta-repository access**: Token must have access to `thetanil/hbf`
+- **Network connectivity**: GitHub API must be accessible during release
 
 ## Testing
 
@@ -287,6 +304,29 @@ bazel test //...
 # Verify formatting is correct
 ./tools/format_check.sh
 ```
+
+### Release and Renovate Issues
+
+If a release fails to trigger Renovate updates:
+
+```bash
+# Check the GitHub Actions workflow logs for:
+# - RENOVATE_TOKEN configuration issues
+# - HTTP status codes from GitHub API calls
+# - Network connectivity problems
+```
+
+**Common Renovate trigger failures**:
+
+- **❌ RENOVATE_TOKEN not configured**: Add the secret in repository settings
+- **❌ HTTP 401/403**: Token lacks `repo` scope or access to meta-repository  
+- **❌ HTTP 404**: Meta-repository `thetanil/hbf` doesn't exist or isn't accessible
+- **❌ Network issues**: Temporary GitHub API problems
+
+**Required for successful releases**:
+- `RENOVATE_TOKEN` secret with `repo` scope
+- Token access to `thetanil/hbf` repository  
+- GitHub API connectivity during release workflow
 
 ### GitHub Actions CI Issues
 
