@@ -56,7 +56,7 @@ jobs:
     steps:
     - name: Trigger Renovate update in meta-repo
       env:
-        META_REPO_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
+        RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
       run: |
         VERSION="${{ github.event.release.tag_name }}"
         echo "Triggering Renovate update for new version: $VERSION"
@@ -68,11 +68,23 @@ jobs:
         echo "Component hbf_examplecpp updated to version $VERSION_NUMBER"
         echo "Release URL: ${{ github.event.release.html_url }}"
         
-        # Validate that RENOVATE_TOKEN is configured
-        if [ -z "$RENOVATE_TOKEN" ]; then
-          echo "❌ RENOVATE_TOKEN secret is not configured!"
-          echo "This is required to trigger Renovate updates in the meta-repository."
-          echo "Please configure the RENOVATE_TOKEN secret in repository settings."
+        # Debug: Check if secret is accessible (without revealing the value)
+        if [ -n "$RENOVATE_TOKEN" ]; then
+          echo "✅ RENOVATE_TOKEN secret is accessible"
+          echo "Token length: ${#RENOVATE_TOKEN} characters"
+        else
+          echo "❌ RENOVATE_TOKEN secret is not accessible!"
+          echo ""
+          echo "Possible causes:"
+          echo "1. Secret 'RENOVATE_TOKEN' is not configured in repository settings"
+          echo "2. Secret is configured at organization level but not accessible to this workflow"
+          echo "3. Workflow permissions don't allow access to secrets"
+          echo "4. Repository is a fork and secrets are not inherited"
+          echo ""
+          echo "To fix:"
+          echo "- Go to repository Settings > Secrets and variables > Actions"
+          echo "- Add 'RENOVATE_TOKEN' secret with a GitHub Personal Access Token"
+          echo "- Token needs 'repo' scope for the meta-repository"
           exit 1
         fi
         

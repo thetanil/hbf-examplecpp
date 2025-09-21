@@ -318,10 +318,19 @@ If a release fails to trigger Renovate updates:
 
 **Common Renovate trigger failures**:
 
-- **❌ RENOVATE_TOKEN not configured**: Add the secret in repository settings
+- **❌ RENOVATE_TOKEN not configured or not accessible**: 
+  - Check repository Settings > Secrets and variables > Actions
+  - Ensure secret name is exactly `RENOVATE_TOKEN` (case-sensitive)
+  - Verify the repository is not a fork (forks don't inherit secrets by default)
+  - Confirm workflow has permission to access secrets
 - **❌ HTTP 401/403**: Token lacks `repo` scope or access to meta-repository  
 - **❌ HTTP 404**: Meta-repository `thetanil/hbf` doesn't exist or isn't accessible
 - **❌ Network issues**: Temporary GitHub API problems
+
+**To debug secret access issues**:
+1. Check the workflow logs for "RENOVATE_TOKEN secret is accessible" message
+2. Verify token length is reported (should be ~40+ characters for GitHub tokens)
+3. Test token manually: `curl -H "Authorization: token YOUR_TOKEN" https://api.github.com/user`
 
 **Required for successful releases**:
 - `RENOVATE_TOKEN` secret with `repo` scope
