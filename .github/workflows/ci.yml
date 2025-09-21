@@ -75,19 +75,27 @@ jobs:
         if [ -n "$RENOVATE_TOKEN" ]; then
           echo "✅ RENOVATE_TOKEN secret is accessible"
           echo "Token length: ${#RENOVATE_TOKEN} characters"
+          echo "Token prefix: ${RENOVATE_TOKEN:0:4}****"
         else
           echo "❌ RENOVATE_TOKEN secret is not accessible!"
           echo ""
-          echo "Possible causes:"
-          echo "1. Secret 'RENOVATE_TOKEN' is not configured in repository settings"
-          echo "2. Secret is configured at organization level but not accessible to this workflow"
-          echo "3. Workflow permissions don't allow access to secrets"
-          echo "4. Repository is a fork and secrets are not inherited"
+          echo "Debugging information:"
+          echo "- Event name: ${{ github.event_name }}"
+          echo "- Repository: ${{ github.repository }}"
+          echo "- Actor: ${{ github.actor }}"
+          echo "- Workflow: ${{ github.workflow }}"
           echo ""
-          echo "To fix:"
-          echo "- Go to repository Settings > Secrets and variables > Actions"
-          echo "- Add 'RENOVATE_TOKEN' secret with a GitHub Personal Access Token"
-          echo "- Token needs 'repo' scope for the meta-repository"
+          echo "Possible issues:"
+          echo "1. Secret 'RENOVATE_TOKEN' not configured in repository settings"
+          echo "2. Secret name mismatch (check exact spelling and case)"
+          echo "3. Repository is a fork (secrets not inherited by default)"
+          echo "4. Organization-level restrictions on secret access"
+          echo ""
+          echo "To verify:"
+          echo "- Go to Settings > Secrets and variables > Actions"
+          echo "- Ensure secret name is exactly 'RENOVATE_TOKEN'"
+          echo "- Check if repository is a fork and configure secrets appropriately"
+          echo "- Verify no organization policies blocking secret access"
           exit 1
         fi
         
@@ -97,6 +105,7 @@ jobs:
         HTTP_STATUS=$(curl -s -w "%{http_code}" -o response.json -X POST \
           -H "Authorization: token $RENOVATE_TOKEN" \
           -H "Accept: application/vnd.github.v3+json" \
+          -H "User-Agent: hbf-examplecpp-release" \
           "https://api.github.com/repos/thetanil/hbf/dispatches" \
           -d '{
             "event_type": "renovate-trigger",
@@ -104,26 +113,50 @@ jobs:
               "component": "hbf_examplecpp",
               "version": "'$VERSION_NUMBER'",
               "repository": "thetanil/hbf-examplecpp",
-              "release_url": "${{ github.event.release.html_url }}"
+              "release_url": "${{ github.event.release.html_url }}",
+              "triggered_by": "${{ github.actor }}",
+              "workflow": "${{ github.workflow }}",
+              "run_id": "${{ github.run_id }}"
             }
           }')
         
         echo "HTTP Status: $HTTP_STATUS"
+        echo "Response content:"
+        cat response.json 2>/dev/null || echo "No response content"
         
         # Check if the API call was successful
         if [ "$HTTP_STATUS" -eq 204 ]; then
-          echo "✅ Successfully triggered Renovate update in meta-repository!"
-          echo "Renovate should pick up the new version: $VERSION_NUMBER"
-        else
-          echo "❌ Failed to trigger Renovate update!"
-          echo "HTTP Status Code: $HTTP_STATUS"
-          echo "Response:"
-          cat response.json || echo "No response content"
           echo ""
-          echo "This could be due to:"
-          echo "- Invalid RENOVATE_TOKEN (check token permissions)"
-          echo "- Meta-repository 'thetanil/hbf' doesn't exist or is not accessible"
-          echo "- Token doesn't have 'repo' scope for the meta-repository"
-          echo "- Network or API issues"
+          echo "✅ SUCCESS: Renovate trigger completed!"
+          echo "📋 Summary:"
+          echo "  - Release version: $VERSION_NUMBER"
+          echo "  - Target repository: thetanil/hbf"
+          echo "  - Event type: renovate-trigger"
+          echo "  - HTTP Status: $HTTP_STATUS (No Content - Success)"
+          echo ""
+          echo "🎯 The meta-repository should receive the dispatch event"
+          echo "    Check the Actions tab in thetanil/hbf for the triggered workflow"
+        else
+          echo ""
+          echo "❌ FAILED: Renovate trigger failed!"
+          echo "📋 Diagnostic Information:"
+          echo "  - HTTP Status Code: $HTTP_STATUS"
+          echo "  - Token accessible: Yes (length: ${#RENOVATE_TOKEN})"
+          echo "  - Target repository: thetanil/hbf"
+          echo "  - Event type: renovate-trigger"
+          echo "  - API endpoint: https://api.github.com/repos/thetanil/hbf/dispatches"
+          echo ""
+          echo "🔍 Common causes:"
+          echo "  - Token lacks 'repo' scope for target repository"
+          echo "  - Target repository 'thetanil/hbf' doesn't exist or isn't accessible"
+          echo "  - Token is expired or revoked"
+          echo "  - Repository visibility/permissions mismatch"
+          echo "  - Network connectivity issues"
+          echo ""
+          echo "🛠️ Next steps:"
+          echo "  1. Verify token has 'repo' scope"
+          echo "  2. Confirm access to thetanil/hbf repository"
+          echo "  3. Check token expiration date"
+          echo "  4. Test token with: curl -H 'Authorization: token TOKEN' https://api.github.com/user"
           exit 1
         fi
