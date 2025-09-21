@@ -17,15 +17,14 @@ jobs:
       uses: actions/checkout@v4
     
     - name: Setup Bazel
-      uses: bazelbuild/setup-bazelisk@v2
-    
-    - name: Cache Bazel
-      uses: actions/cache@v4
+      uses: bazel-contrib/setup-bazel@0.15.0
       with:
-        path: ~/.cache/bazel
-        key: bazel-${{ runner.os }}-${{ hashFiles('MODULE.bazel', '.bazelrc', '.bazelversion') }}
-        restore-keys: |
-          bazel-${{ runner.os }}-
+        # Avoid downloading Bazel every time
+        bazelisk-cache: true
+        # Store build cache per workflow
+        disk-cache: ${{ github.workflow }}
+        # Share repository cache between workflows
+        repository-cache: true
     
     - name: Build library
       run: bazel build //src:math_operations

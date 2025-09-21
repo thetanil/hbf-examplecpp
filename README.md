@@ -106,6 +106,21 @@ When running `bazel test //... --test_output=all`, you should see:
 [  PASSED  ] 10 tests.
 ```
 
+#### Continuous Integration
+
+The project uses GitHub Actions with `bazel-contrib/setup-bazel` for optimal CI performance:
+
+```yaml
+- name: Setup Bazel
+  uses: bazel-contrib/setup-bazel@0.15.0
+  with:
+    bazelisk-cache: true          # Cache Bazel downloads
+    disk-cache: ${{ github.workflow }}  # Per-workflow build cache
+    repository-cache: true        # Shared external deps cache
+```
+
+This provides automatic caching without manual configuration and significantly faster CI runs.
+
 ## Usage in Other Components
 
 ### As a Bazel Dependency
@@ -210,16 +225,18 @@ All 10 tests should pass successfully:
 
 ### Common Warnings
 
-You may see these warnings when building (they are harmless):
+~~You may see these warnings when building (they are harmless):~~
 
+~~WARNING: Option 'experimental_enable_bzlmod' is deprecated: Use --enable_bzlmod instead~~
+
+**Fixed!** The deprecated `--experimental_enable_bzlmod` flag has been removed from `.bazelrc` in favor of the modern `--enable_bzlmod` flag.
+
+If you see dependency version warnings:
 ```
-WARNING: Option 'experimental_enable_bzlmod' is deprecated: Use --enable_bzlmod instead
 WARNING: For repository 'rules_cc', the root module requires module version rules_cc@0.0.9, but got rules_cc@0.1.1
 ```
 
-These can be resolved by:
-1. Updating `.bazelrc` to use `--enable_bzlmod` instead of the experimental flag
-2. Updating dependency versions in `MODULE.bazel` to match resolved versions
+These can be resolved by updating dependency versions in `MODULE.bazel` to match resolved versions, or using `--check_direct_dependencies=off` if needed.
 
 ### Build Issues
 
@@ -240,17 +257,25 @@ bazel info | grep bzlmod
 ### GitHub Actions CI Issues
 
 **Cache service responded with 400**: This CI issue has been resolved by:
-- Upgrading to `actions/cache@v4`
-- Simplifying cache key generation
-- Adding `.bazelversion` file for consistent builds
-- Using proper cache path format
+- **Migrating to `bazel-contrib/setup-bazel@0.15.0`** (replaces deprecated `bazelbuild/setup-bazelisk`)
+- **Built-in intelligent caching** with `bazelisk-cache`, `disk-cache`, and `repository-cache`
+- **Simplified configuration** - no manual cache setup needed
+- **Per-workflow disk cache** for build artifacts
+- **Shared repository cache** between workflows for external dependencies
 
-The CI workflow now includes:
-- Bazel setup with Bazelisk
-- Proper caching configuration
-- Build and test validation
+The modern CI workflow now includes:
+- Latest Bazel setup with automatic version detection from `.bazelversion`
+- Advanced caching strategies for optimal performance
+- Build and test validation with proper error reporting
 - Module structure verification
-- Optional code formatting checks
+- Optional code formatting checks with clang-format
+
+**Benefits of the new setup**:
+- ✅ Faster CI runs with intelligent caching
+- ✅ No cache key conflicts or 400 errors  
+- ✅ Automatic Bazel/Bazelisk version management
+- ✅ Shared caches across workflow runs
+- ✅ Better cache hit rates for external dependencies
 
 ## Integration
 

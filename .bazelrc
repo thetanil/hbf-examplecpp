@@ -1,6 +1,5 @@
 # Build configuration for C++ component
 build --enable_bzlmod
-build --experimental_enable_bzlmod
 
 # C++ configuration
 build --cxxopt=-std=c++17
