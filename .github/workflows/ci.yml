@@ -108,7 +108,7 @@ jobs:
           -H "User-Agent: hbf-examplecpp-release" \
           "https://api.github.com/repos/thetanil/hbf/dispatches" \
           -d '{
-            "event_type": "renovate-trigger",
+            "event_type": "component-update",
             "client_payload": {
               "component": "hbf_examplecpp",
               "version": "'$VERSION_NUMBER'",
@@ -131,7 +131,7 @@ jobs:
           echo "📋 Summary:"
           echo "  - Release version: $VERSION_NUMBER"
           echo "  - Target repository: thetanil/hbf"
-          echo "  - Event type: renovate-trigger"
+          echo "  - Event type: component-update"
           echo "  - HTTP Status: $HTTP_STATUS (No Content - Success)"
           echo ""
           echo "🎯 The meta-repository should receive the dispatch event"
@@ -143,7 +143,7 @@ jobs:
           echo "  - HTTP Status Code: $HTTP_STATUS"
           echo "  - Token accessible: Yes (length: ${#RENOVATE_TOKEN})"
           echo "  - Target repository: thetanil/hbf"
-          echo "  - Event type: renovate-trigger"
+          echo "  - Event type: component-update"
           echo "  - API endpoint: https://api.github.com/repos/thetanil/hbf/dispatches"
           echo ""
           echo "🔍 Common causes:"
